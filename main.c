@@ -11,7 +11,7 @@ typedef enum {
     TOKEN_ERROR = 0,
     TOKEN_CH,                   // [x] character (includes escaped ones)
     TOKEN_SBR_OPEN,             // [x] [
-    TOKEN_SBR_CLOSE,            // [ ] ]
+    TOKEN_SBR_CLOSE,            // [x] ]
     TOKEN_SBR_CARET_OPEN,       // [x] [^
     TOKEN_MINUS,                // [ ] -
     TOKEN_DOT,                  // [ ] .
@@ -130,18 +130,14 @@ int main(void)
     #if 0
     Table t = {0};
 
-    t.rows = 3;
-    t.data[1]['['] = 2;
-    for (size_t i = 0; i <= 127; i++) {
-        t.data[2][i] = 3;
-    }
-    t.data[2]['^'] = 0;
+    t.rows = 2;
+    t.data[1][']'] = 2;
 
     dump_compiled(&t);
     #endif
 
-    const char *str = "[";
-    printf("%lu\n", match(&table_sbr_open, str));
+    const char *str = "]";
+    printf("%lu\n", match(&table_sbr_close, str));
 
     return 0;
 }
