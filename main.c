@@ -13,7 +13,7 @@ typedef enum {
     TOKEN_SBR_OPEN,             // [x] [
     TOKEN_SBR_CLOSE,            // [x] ]
     TOKEN_SBR_CARET_OPEN,       // [x] [^
-    TOKEN_MINUS,                // [ ] -
+    TOKEN_MINUS,                // [x] -
     TOKEN_DOT,                  // [ ] .
 } Token_Type;
 
@@ -131,13 +131,13 @@ int main(void)
     Table t = {0};
 
     t.rows = 2;
-    t.data[1][']'] = 2;
+    t.data[1]['-'] = 2;
 
     dump_compiled(&t);
     #endif
 
-    const char *str = "]";
-    printf("%lu\n", match(&table_sbr_close, str));
+    const char *str = "-";
+    printf("%lu\n", match(&table_minus, str));
 
     return 0;
 }
