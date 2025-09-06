@@ -7,12 +7,20 @@
 #include "table.h"
 #include "compiled.h"
 
+#define STB_DS_IMPLEMENTATION
+#include "stb_ds.h"
+
+#define ARENA_IMPLEMENTATION
+#include "arena.h"
+
+#define DEBUG_BYTE 0xCE
+
 typedef enum {
     TOKEN_ERROR = 0,
     TOKEN_CH,                   // [x] character (includes escaped ones)
-    TOKEN_SBR_OPEN,             // [x] [
-    TOKEN_SBR_CLOSE,            // [x] ]
-    TOKEN_SBR_CARET_OPEN,       // [x] [^
+    TOKEN_SBR_OPEN,             // [ ] [
+    TOKEN_SBR_CLOSE,            // [ ] ]
+    TOKEN_SBR_CARET_OPEN,       // [ ] [^
     TOKEN_MINUS,                // [x] -
     TOKEN_DOT,                  // [x] .
 } Token_Type;
@@ -25,54 +33,37 @@ typedef struct {
     } ch;
 } Token;
 
-void compile(Table *t, const char *str)
-{
-    assert(0 && "todo");
-    (void)t;
-    (void)str;
+typedef enum {
+    NODE_ERROR = 0,
+    NODE_CH,
+    NODE_INCLUDE_CLASS,
+    NODE_EXCLUDE_CLASS,
+    NODE_RANGE,
+    NODE_ANYCH,
+} Node_Type;
 
-    #if 0
-    uint32_t state = STATE_INIT;
-    bool in_cc = false;
+typedef struct Node Node;
+struct Node {
+    Node_Type type;
+    Node *next;
 
-    while (str[0]) {
-        assert(state < ROWS_COUNT && "too many states");
+    struct {
+        char value;
+    } ch;
 
-        if (str[0] == '[') {
-            in_cc = true;
-            str++;
-            continue;
-        }
+    struct {
+        Node *head;
+    } include_class;
 
-        if (str[0] == ']') {
-            assert(in_cc && "stray ']' found");
-            in_cc = false;
-            str++;
-            state++;
-            continue;
-        }
+    struct {
+        Node *head;
+    } exclude_class;
 
-        if (in_cc) {
-            t->data[state][(uint8_t)str[0]] = state + 1;
-            str++;
-            continue;
-        }
-
-        if (str[0] == '$') {
-            t->data[state][0] = state + 1;
-        } else {
-            t->data[state][(uint8_t)str[0]] = state + 1;
-        }
-
-        str++;
-        state++;
-    }
-
-    assert(!in_cc && "character class not closed");
-
-    t->rows = state - STATE_INIT + 1;
-    #endif
-}
+    struct {
+        char start;
+        char end;
+    } range;
+};
 
 void dump(const Table *t)
 {
@@ -125,19 +116,132 @@ size_t match(const Table *t, const char *str)
     }
 }
 
+size_t chop_token(Token *t, const char *str)
+{
+    size_t matched = -1;
+
+    if ((matched = match(&table_ch, str))) {
+        t->type = TOKEN_CH;
+        (matched == 1) ? (t->ch.value = str[0]) : (t->ch.value = str[1]);
+        return matched;
+    }
+
+    if ((matched = match(&table_sbr_caret_open, str))) {
+        t->type = TOKEN_SBR_CARET_OPEN;
+        return matched;
+    }
+
+    if ((matched = match(&table_sbr_open, str))) {
+        t->type = TOKEN_SBR_OPEN;
+        return matched;
+    }
+
+    if ((matched = match(&table_sbr_close, str))) {
+        t->type = TOKEN_SBR_CLOSE;
+        return matched;
+    }
+
+    if ((matched = match(&table_minus, str))) {
+        t->type = TOKEN_MINUS;
+        return matched;
+    }
+
+    if ((matched = match(&table_dot, str))) {
+        t->type = TOKEN_DOT;
+        return matched;
+    }
+
+    return 0;
+}
+
+size_t chop_node(Node *n, Token *ts, size_t eaten)
+{
+    if (eaten + 2 < arrlenu(ts) && ts[eaten + 1].type == TOKEN_MINUS) {
+        if (ts[eaten].type != TOKEN_CH || ts[eaten + 2].type != TOKEN_CH) {
+            return 0;
+        }
+        n->type = NODE_RANGE;
+        n->range.start = ts[eaten].ch.value;
+        n->range.end = ts[eaten + 2].ch.value;
+        return 3;
+    }
+
+    if (eaten < arrlenu(ts) && ts[eaten].type == TOKEN_CH) {
+        n->type = NODE_CH;
+        n->ch.value = ts[eaten].ch.value;
+        return 1;
+    }
+
+    if (eaten < arrlenu(ts) && ts[eaten].type == TOKEN_DOT) {
+        n->type = NODE_ANYCH;
+        return 1;
+    }
+
+    assert(0 && "not implemented yet");
+
+    return 0;
+}
+
+size_t compile(Table *t, const char *str, size_t len, Arena *a)
+{
+    Token *ts = NULL;
+    Node *head = NULL;
+    Node *tail = NULL;
+
+    {
+        size_t proc = 0;
+
+        while (proc < len) {
+            size_t n = -1;
+            Token tok = {0};
+
+            n = chop_token(&tok, &str[proc]);
+            if (!n) {
+                printf("Error compiling regex %s: syntax error on char %lu ('%c').\n", str, proc + 1, str[proc]);
+                return 0;
+            }
+            assert(proc + n <= len);
+            arrput(ts, tok);
+            proc += n;
+        }
+    }
+
+    {
+        size_t eaten = 0;
+
+        while (eaten < arrlenu(ts)) {
+            size_t n = -1;
+            Node *node = arena_alloc(a, sizeof *node);
+            memset(node, DEBUG_BYTE, sizeof *node);
+
+            n = chop_node(node, ts, eaten);
+            assert(n);
+            assert(eaten + n <= arrlenu(ts));
+
+            if (!tail) {
+                assert(head == NULL);
+                head = tail = node;
+            } else {
+                tail->next = node;
+                tail = node;
+            }
+
+            eaten += n;
+        }
+    }
+
+    arrfree(ts);
+    return len;
+}
+
 int main(void)
 {
-    #if 0
     Table t = {0};
+    Arena a = {0};
+    const char *str = "a-z";
 
-    t.rows = 2;
-    t.data[1]['.'] = 2;
+    compile(&t, str, strlen(str), &a);
 
-    dump_compiled(&t);
-    #endif
-
-    const char *str = ".";
-    printf("%lu\n", match(&table_dot, str));
-
+    arena_free(&a);
     return 0;
 }
