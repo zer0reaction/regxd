@@ -9,12 +9,12 @@
 
 typedef enum {
     TOKEN_ERROR = 0,
-    TOKEN_CH,                   // character (includes escaped ones)
-    TOKEN_SBR_OPEN,             // [
-    TOKEN_SBR_CLOSE,            // ]
-    TOKEN_SBR_CARET_OPEN,       // [^
-    TOKEN_MINUS,                // -
-    TOKEN_DOT,                  // .
+    TOKEN_CH,                   // [x] character (includes escaped ones)
+    TOKEN_SBR_OPEN,             // [x] [
+    TOKEN_SBR_CLOSE,            // [ ] ]
+    TOKEN_SBR_CARET_OPEN,       // [x] [^
+    TOKEN_MINUS,                // [ ] -
+    TOKEN_DOT,                  // [ ] .
 } Token_Type;
 
 typedef struct {
@@ -127,10 +127,21 @@ size_t match(const Table *t, const char *str)
 
 int main(void)
 {
-    const char *str = "[^";
-    const Table *t = &table_sbr_caret_open;
+    #if 0
+    Table t = {0};
 
-    printf("%lu\n", match(t, str));
+    t.rows = 3;
+    t.data[1]['['] = 2;
+    for (size_t i = 0; i <= 127; i++) {
+        t.data[2][i] = 3;
+    }
+    t.data[2]['^'] = 0;
+
+    dump_compiled(&t);
+    #endif
+
+    const char *str = "[";
+    printf("%lu\n", match(&table_sbr_open, str));
 
     return 0;
 }
