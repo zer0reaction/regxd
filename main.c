@@ -2,17 +2,28 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <assert.h>
+#include <string.h>
 
-#define ROWS_COUNT 32
-#define EVENTS_COUNT 128
+#include "table.h"
+#include "compiled.h"
 
-#define STATE_FAIL 0
-#define STATE_INIT 1
+typedef enum {
+    TOKEN_ERROR = 0,
+    TOKEN_CH,                   // character (includes escaped ones)
+    TOKEN_SBR_OPEN,             // [
+    TOKEN_SBR_CLOSE,            // ]
+    TOKEN_SBR_CARET_OPEN,       // [^
+    TOKEN_MINUS,                // -
+    TOKEN_DOT,                  // .
+} Token_Type;
 
 typedef struct {
-    uint32_t rows;
-    uint32_t data[ROWS_COUNT][EVENTS_COUNT];
-} Table;
+    Token_Type type;
+
+    struct {
+        char value;
+    } ch;
+} Token;
 
 void compile(Table *t, const char *str)
 {
@@ -82,11 +93,12 @@ void dump_array(Table *t)
         }
         printf("},\n");
     }
-    printf("\n};\n");
+    printf("};\n");
 }
 
-bool match(Table *t, const char *str)
+size_t match(Table *t, const char *str)
 {
+    const char *str_start = str;
     uint32_t state = STATE_INIT;
 
     while (1) {
@@ -97,15 +109,31 @@ bool match(Table *t, const char *str)
         str++;
     }
 
-    return state != STATE_FAIL;
+    if (state == STATE_FAIL) {
+        return 0;
+    } else {
+        return (size_t)(str - str_start);
+    }
 }
 
 int main(void)
 {
-    Table t = {0};
+    Table *t = &table_ch;
 
-    compile(&t, "if[ \n\t(]");
-    dump_array(&t);
+    {
+        size_t i = (size_t)-1;
+        const char *str = "int\\[f\\]oo\\]b\\.a\\-r\\\\oooo";
+        size_t len = (size_t)-1;
+
+        len = strlen(str);
+
+        i = 0;
+        while (i < len) {
+            size_t n = match(t, &str[i]);
+            printf("%s :: %lu\n", &str[i], n);
+            i += n;
+        }
+    }
 
     return 0;
 }
