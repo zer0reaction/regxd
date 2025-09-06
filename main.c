@@ -27,6 +27,11 @@ typedef struct {
 
 void compile(Table *t, const char *str)
 {
+    assert(0 && "todo");
+    (void)t;
+    (void)str;
+
+    #if 0
     uint32_t state = STATE_INIT;
     bool in_cc = false;
 
@@ -66,9 +71,10 @@ void compile(Table *t, const char *str)
     assert(!in_cc && "character class not closed");
 
     t->rows = state - STATE_INIT + 1;
+    #endif
 }
 
-void dump(Table *t)
+void dump(const Table *t)
 {
     size_t i, j;
 
@@ -81,7 +87,7 @@ void dump(Table *t)
     }
 }
 
-void dump_array(Table *t)
+void dump_array(const Table *t)
 {
     size_t i, j;
 
@@ -96,7 +102,7 @@ void dump_array(Table *t)
     printf("};\n");
 }
 
-size_t match(Table *t, const char *str)
+size_t match(const Table *t, const char *str)
 {
     const char *str_start = str;
     uint32_t state = STATE_INIT;
@@ -118,7 +124,7 @@ size_t match(Table *t, const char *str)
 
 int main(void)
 {
-    Table *t = &table_ch;
+    const Table *t = &table_ch;
 
     {
         size_t i = (size_t)-1;
