@@ -14,7 +14,7 @@ typedef enum {
     TOKEN_SBR_CLOSE,            // [x] ]
     TOKEN_SBR_CARET_OPEN,       // [x] [^
     TOKEN_MINUS,                // [x] -
-    TOKEN_DOT,                  // [ ] .
+    TOKEN_DOT,                  // [x] .
 } Token_Type;
 
 typedef struct {
@@ -131,13 +131,13 @@ int main(void)
     Table t = {0};
 
     t.rows = 2;
-    t.data[1]['-'] = 2;
+    t.data[1]['.'] = 2;
 
     dump_compiled(&t);
     #endif
 
-    const char *str = "-";
-    printf("%lu\n", match(&table_minus, str));
+    const char *str = ".";
+    printf("%lu\n", match(&table_dot, str));
 
     return 0;
 }
