@@ -18,9 +18,9 @@
 typedef enum {
     TOKEN_ERROR = 0,
     TOKEN_CH,                   // [x] character (includes escaped ones)
-    TOKEN_SBR_OPEN,             // [ ] [
-    TOKEN_SBR_CLOSE,            // [ ] ]
-    TOKEN_SBR_CARET_OPEN,       // [ ] [^
+    TOKEN_SBR_OPEN,             // [x] [
+    TOKEN_SBR_CLOSE,            // [x] ]
+    TOKEN_SBR_CARET,            // [x] [^
     TOKEN_MINUS,                // [x] -
     TOKEN_DOT,                  // [x] .
 } Token_Type;
@@ -36,8 +36,8 @@ typedef struct {
 typedef enum {
     NODE_ERROR = 0,
     NODE_CH,
-    NODE_INCLUDE_CLASS,
-    NODE_EXCLUDE_CLASS,
+    NODE_CLASS_INCLUDE,
+    NODE_CLASS_EXCLUDE,
     NODE_RANGE,
     NODE_ANYCH,
 } Node_Type;
@@ -53,11 +53,11 @@ struct Node {
 
     struct {
         Node *head;
-    } include_class;
+    } class_include;
 
     struct {
         Node *head;
-    } exclude_class;
+    } class_exclude;
 
     struct {
         char start;
@@ -127,7 +127,7 @@ size_t chop_token(Token *t, const char *str)
     }
 
     if ((matched = match(&table_sbr_caret_open, str))) {
-        t->type = TOKEN_SBR_CARET_OPEN;
+        t->type = TOKEN_SBR_CARET;
         return matched;
     }
 
@@ -154,7 +154,7 @@ size_t chop_token(Token *t, const char *str)
     return 0;
 }
 
-size_t chop_node(Node *n, Token *ts, size_t eaten)
+size_t chop_node(Node *n, Token *ts, size_t eaten, Arena *a)
 {
     if (eaten + 2 < arrlenu(ts) && ts[eaten + 1].type == TOKEN_MINUS) {
         if (ts[eaten].type != TOKEN_CH || ts[eaten + 2].type != TOKEN_CH) {
@@ -164,6 +164,45 @@ size_t chop_node(Node *n, Token *ts, size_t eaten)
         n->range.start = ts[eaten].ch.value;
         n->range.end = ts[eaten + 2].ch.value;
         return 3;
+    }
+
+    if (eaten < arrlenu(ts) && (ts[eaten].type == TOKEN_SBR_OPEN ||
+                                ts[eaten].type == TOKEN_SBR_CARET))
+    {
+        size_t proc = 1;
+        Node *tail = NULL;
+
+        if (ts[eaten].type == TOKEN_SBR_OPEN) {
+            n->type = NODE_CLASS_INCLUDE;
+        } else {
+            n->type = NODE_CLASS_EXCLUDE;
+        }
+
+        while (1) {
+            size_t tmp = -1;
+            Node *cn = arena_alloc(a, sizeof *cn);
+            memset(cn, DEBUG_BYTE, sizeof *cn);
+
+            if (ts[eaten + proc].type == TOKEN_SBR_CLOSE) {
+                proc += 1;
+                break;
+            }
+
+            tmp = chop_node(cn, ts, eaten + proc, a);
+            if (!tmp) return 0;
+
+            if (!tail) {
+                n->class_include.head = tail = cn;
+            } else {
+                tail->next = cn;
+                tail = cn;
+            }
+
+            proc += tmp;
+            if (eaten + proc >= arrlenu(ts)) return 0;
+        }
+
+        return proc;
     }
 
     if (eaten < arrlenu(ts) && ts[eaten].type == TOKEN_CH) {
@@ -176,8 +215,6 @@ size_t chop_node(Node *n, Token *ts, size_t eaten)
         n->type = NODE_ANYCH;
         return 1;
     }
-
-    assert(0 && "not implemented yet");
 
     return 0;
 }
@@ -214,8 +251,11 @@ size_t compile(Table *t, const char *str, size_t len, Arena *a)
             Node *node = arena_alloc(a, sizeof *node);
             memset(node, DEBUG_BYTE, sizeof *node);
 
-            n = chop_node(node, ts, eaten);
-            assert(n);
+            n = chop_node(node, ts, eaten, a);
+            if (!n) {
+                printf("Error compiling regex %s: failed to parse.\n", str);
+                return 0;
+            }
             assert(eaten + n <= arrlenu(ts));
 
             if (!tail) {
@@ -238,9 +278,9 @@ int main(void)
 {
     Table t = {0};
     Arena a = {0};
-    const char *str = "a-z";
+    const char *str = "if[^a-zA-Z_]";
 
-    compile(&t, str, strlen(str), &a);
+    printf("%lu\n", compile(&t, str, strlen(str), &a));
 
     arena_free(&a);
     return 0;
