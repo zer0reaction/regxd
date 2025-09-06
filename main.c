@@ -127,5 +127,10 @@ size_t match(const Table *t, const char *str)
 
 int main(void)
 {
+    const char *str = "[^";
+    const Table *t = &table_sbr_caret_open;
+
+    printf("%lu\n", match(t, str));
+
     return 0;
 }
