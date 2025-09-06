@@ -87,18 +87,21 @@ void dump(const Table *t)
     }
 }
 
-void dump_array(const Table *t)
+void dump_compiled(const Table *t)
 {
     size_t i, j;
 
-    printf("static uint32_t <compiled> = {\n");
+    printf("static const Table <compiled> = {\n");
+    printf("    .rows = %u,\n", t->rows);
+    printf("    .data = {\n");
     for (i = 0; i < t->rows; i++) {
-        printf("    { ");
+        printf("        { ");
         for (j = 0; j < EVENTS_COUNT; j++) {
             printf("%u, ", t->data[i][j]);
         }
         printf("},\n");
     }
+    printf("    }\n");
     printf("};\n");
 }
 
@@ -124,22 +127,5 @@ size_t match(const Table *t, const char *str)
 
 int main(void)
 {
-    const Table *t = &table_ch;
-
-    {
-        size_t i = (size_t)-1;
-        const char *str = "int\\[f\\]oo\\]b\\.a\\-r\\\\oooo";
-        size_t len = (size_t)-1;
-
-        len = strlen(str);
-
-        i = 0;
-        while (i < len) {
-            size_t n = match(t, &str[i]);
-            printf("%s :: %lu\n", &str[i], n);
-            i += n;
-        }
-    }
-
     return 0;
 }
