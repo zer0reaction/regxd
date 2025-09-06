@@ -3,7 +3,8 @@
 
 #include "table.h"
 
-/* matches all printable ascii characters except [ ] - . \ which are escaped \[ \] \- \. \\ */
+/* matches all printable ascii characters
+except [ ] - . \ which are escaped \[ \] \- \. \\ */
 static const Table table_ch = {
     .rows = 3,
     .data = {
@@ -23,7 +24,7 @@ static const Table table_sbr_open = {
     }
 };
 
-// matches [
+// matches ]
 static const Table table_sbr_close = {
     .rows = 2,
     .data = {
